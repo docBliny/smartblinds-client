@@ -1,5 +1,5 @@
 # Changelog
-## [0.7] - 2023-01-27
+## [0.7.0] - 2023-01-27
 
 ### Changed
 - Forked from https://github.com/ianlevesque/smartblinds-client

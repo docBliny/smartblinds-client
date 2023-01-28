@@ -8,7 +8,7 @@ def readme():
 
 setup(
     name='smartblinds_client',
-    version='0.7',
+    version='0.7.0',
     description='Unofficial client for the MySmartBlinds Smart Bridge',
     long_description=readme(),
     url='https://github.com/docBliny/smartblinds-client',
