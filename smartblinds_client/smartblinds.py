@@ -1,7 +1,9 @@
 import json
 import typing
 
-from auth0.authentication import GetToken
+from auth0.v3.authentication import GetToken
+# The following is for v4 of the library when we upgrade
+# from auth0.authentication import GetToken
 import requests
 import base64
 
@@ -86,12 +88,23 @@ class SmartBlindsClient:
         self._tokens = None
 
     def login(self):
-        token = GetToken(self.AUTH0_DOMAIN, self.AUTH0_CLIENT_ID)
-        self._tokens = token.login(username=self._username, password=self._password,
-                                   scope=self.AUTH0_SCOPE,
-                                   audience=self.AUTH0_AUDIENCE,
-                                   realm=self.AUTH0_REALM,
-                                   grant_type=self.AUTH0_GRANT_TYPE)
+        token = GetToken(self.AUTH0_DOMAIN)
+        self._tokens = token.login(
+            client_id=self.AUTH0_CLIENT_ID,
+            client_secret="",
+            username=self._username,
+            password=self._password,
+            scope=self.AUTH0_SCOPE,
+            audience=self.AUTH0_AUDIENCE,
+            realm=self.AUTH0_REALM,
+            grant_type=self.AUTH0_GRANT_TYPE)
+        # The following is for v4 of the library when we upgrade
+        # token = GetToken(self.AUTH0_DOMAIN, self.AUTH0_CLIENT_ID)
+        # self._tokens = token.login(username=self._username, password=self._password,
+        #                            scope=self.AUTH0_SCOPE,
+        #                            audience=self.AUTH0_AUDIENCE,
+        #                            realm=self.AUTH0_REALM,
+        #                            grant_type=self.AUTH0_GRANT_TYPE)
 
         return self._tokens
 
@@ -133,7 +146,8 @@ class SmartBlindsClient:
 
         for blind in response['data']['user']['blinds']:
             if not blind['deleted']:
-                blind = Blind(blind['name'], blind['encodedMacAddress'], blind['roomId'], blind['encodedPasskey'])
+                blind = Blind(blind['name'], blind['encodedMacAddress'],
+                              blind['roomId'], blind['encodedPasskey'])
                 blinds.append(blind)
 
                 if blind.room_id is not None and blind.room_id in rooms:
@@ -181,7 +195,8 @@ class SmartBlindsClient:
                     'position': position,
                     'blinds': list(map(lambda b: b.encoded_mac, blinds_batch)),
                 })
-            blind_states.update(self._parse_states(response, 'updateBlindsPosition'))
+            blind_states.update(self._parse_states(
+                response, 'updateBlindsPosition'))
 
         return blind_states
 
@@ -294,9 +309,11 @@ class SmartBlindsClient:
                         rssi=blind_state['rssi'],
                         battery_level=blind_state['batteryLevel'])
             elif 'errors' in response:
-                raise Exception('Server returned the following errors: {}'.format(json.dumps(response['errors'], 2)))
+                raise Exception('Server returned the following errors: {}'.format(
+                    json.dumps(response['errors'], 2)))
         elif 'errors' in response:
-            raise Exception('Server returned the following errors: {}'.format(json.dumps(response['errors'], 2)))
+            raise Exception('Server returned the following errors: {}'.format(
+                json.dumps(response['errors'], 2)))
         else:
             raise Exception('Unknown response received: {}'.format(response))
 

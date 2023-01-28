@@ -15,7 +15,7 @@ setup(
     author='Ian Levesque, Tomi Blinnikka',
     author_email='ian@ianlevesque.org, docBliny@users.noreply.github.com',
     packages=['smartblinds_client'],
-    install_requires=['auth0-python', 'requests'],
+    install_requires=['auth0-python~=3.24.1', 'requests~=2.28.2'],
     long_description_content_type="text/markdown",
     classifiers=[
         'Development Status :: 4 - Beta',
