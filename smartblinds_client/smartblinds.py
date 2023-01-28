@@ -1,6 +1,9 @@
+import json
 import typing
 
-from auth0.v3.authentication import Database
+from auth0.v3.authentication import GetToken
+# The following is for v4 of the library when we upgrade
+# from auth0.authentication import GetToken
 import requests
 import base64
 
@@ -70,7 +73,10 @@ class Room:
 class SmartBlindsClient:
     AUTH0_DOMAIN = "mysmartblinds.auth0.com"
     AUTH0_CLIENT_ID = "1d1c3vuqWtpUt1U577QX5gzCJZzm8WOB"
-    AUTH0_CONNECTION = "Username-Password-Authentication"
+    AUTH0_SCOPE = "openid email offline_access"
+    AUTH0_AUDIENCE = ""
+    AUTH0_REALM = "Username-Password-Authentication"
+    AUTH0_GRANT_TYPE = "http://auth0.com/oauth/grant-type/password-realm"
 
     GRAPHQL_ENDPOINT = "https://api.mysmartblinds.com/v1/graphql"
 
@@ -82,11 +88,23 @@ class SmartBlindsClient:
         self._tokens = None
 
     def login(self):
-        auth0database = Database(self.AUTH0_DOMAIN)
-        self._tokens = auth0database.login(self.AUTH0_CLIENT_ID, self._username, self._password,
-                                           self.AUTH0_CONNECTION,
-                                           device="smartblinds_client",
-                                           scope="openid offline_access")
+        token = GetToken(self.AUTH0_DOMAIN)
+        self._tokens = token.login(
+            client_id=self.AUTH0_CLIENT_ID,
+            client_secret="",
+            username=self._username,
+            password=self._password,
+            scope=self.AUTH0_SCOPE,
+            audience=self.AUTH0_AUDIENCE,
+            realm=self.AUTH0_REALM,
+            grant_type=self.AUTH0_GRANT_TYPE)
+        # The following is for v4 of the library when we upgrade
+        # token = GetToken(self.AUTH0_DOMAIN, self.AUTH0_CLIENT_ID)
+        # self._tokens = token.login(username=self._username, password=self._password,
+        #                            scope=self.AUTH0_SCOPE,
+        #                            audience=self.AUTH0_AUDIENCE,
+        #                            realm=self.AUTH0_REALM,
+        #                            grant_type=self.AUTH0_GRANT_TYPE)
 
         return self._tokens
 
@@ -128,7 +146,8 @@ class SmartBlindsClient:
 
         for blind in response['data']['user']['blinds']:
             if not blind['deleted']:
-                blind = Blind(blind['name'], blind['encodedMacAddress'], blind['roomId'], blind['encodedPasskey'])
+                blind = Blind(blind['name'], blind['encodedMacAddress'],
+                              blind['roomId'], blind['encodedPasskey'])
                 blinds.append(blind)
 
                 if blind.room_id is not None and blind.room_id in rooms:
@@ -152,7 +171,7 @@ class SmartBlindsClient:
                     }
                 ''',
                 variables={
-                    'blinds': list(map(lambda b: b.encoded_mac, blinds_batch)),
+                    'blinds': list(map(lambda b: b.encoded_mac, blinds_batch))
                 })
             blind_states.update(self._parse_states(response))
 
@@ -176,19 +195,127 @@ class SmartBlindsClient:
                     'position': position,
                     'blinds': list(map(lambda b: b.encoded_mac, blinds_batch)),
                 })
-            blind_states.update(self._parse_states(response, 'updateBlindsPosition'))
+            blind_states.update(self._parse_states(
+                response, 'updateBlindsPosition'))
 
         return blind_states
+
+    def get_schema(self):
+        response = self._graphql(
+            query='''
+                fragment FullType on __Type {
+                kind
+                name
+                fields(includeDeprecated: true) {
+                    name
+                    args {
+                    ...InputValue
+                    }
+                    type {
+                    ...TypeRef
+                    }
+                    isDeprecated
+                    deprecationReason
+                }
+                inputFields {
+                    ...InputValue
+                }
+                interfaces {
+                    ...TypeRef
+                }
+                enumValues(includeDeprecated: true) {
+                    name
+                    isDeprecated
+                    deprecationReason
+                }
+                possibleTypes {
+                    ...TypeRef
+                }
+                }
+                fragment InputValue on __InputValue {
+                name
+                type {
+                    ...TypeRef
+                }
+                defaultValue
+                }
+                fragment TypeRef on __Type {
+                kind
+                name
+                ofType {
+                    kind
+                    name
+                    ofType {
+                    kind
+                    name
+                    ofType {
+                        kind
+                        name
+                        ofType {
+                        kind
+                        name
+                        ofType {
+                            kind
+                            name
+                            ofType {
+                            kind
+                            name
+                            ofType {
+                                kind
+                                name
+                            }
+                            }
+                        }
+                        }
+                    }
+                    }
+                }
+                }
+                query IntrospectionQuery {
+                __schema {
+                    queryType {
+                    name
+                    }
+                    mutationType {
+                    name
+                    }
+                    types {
+                    ...FullType
+                    }
+                    directives {
+                    name
+                    locations
+                    args {
+                        ...InputValue
+                    }
+                    }
+                }
+                }
+            ''')
+        return response
 
     @staticmethod
     def _parse_states(response, key='blindsState') -> typing.Mapping[str, BlindState]:
         blind_states = {}
 
-        for blind_state in response['data'][key]:
-            blind_states[blind_state['encodedMacAddress']] = BlindState(
-                position=blind_state['position'],
-                rssi=blind_state['rssi'],
-                battery_level=blind_state['batteryLevel'])
+        if response is None:
+            raise Exception('No response received from MySmartBlinds service')
+        elif 'data' in response:
+            print(response)
+            if 'bindsState' in response['data'] and response['data']['blindsState'] is not None:
+                for blind_state in response['data'][key]:
+                    blind_states[blind_state['encodedMacAddress']] = BlindState(
+                        position=blind_state['position'],
+                        rssi=blind_state['rssi'],
+                        battery_level=blind_state['batteryLevel'])
+            elif 'errors' in response:
+                raise Exception('Server returned the following errors: {}'.format(
+                    json.dumps(response['errors'], 2)))
+        elif 'errors' in response:
+            raise Exception('Server returned the following errors: {}'.format(
+                json.dumps(response['errors'], 2)))
+        else:
+            raise Exception('Unknown response received: {}'.format(response))
 
         return blind_states
 
@@ -197,6 +324,8 @@ class SmartBlindsClient:
             self.GRAPHQL_ENDPOINT,
             headers={
                 'Authorization': self._auth_header(),
+                'auth0-client-id': self.AUTH0_CLIENT_ID,
+                'user-agent': 'MySmartBlinds/1 CFNetwork/1404.0.5 Darwin/22.3.0'
             },
             json={
                 'query': query,
@@ -211,10 +340,10 @@ class SmartBlindsClient:
         if self._tokens is None:
             self.login()
 
-        if self._tokens["token_type"] != "bearer":
+        if self._tokens["token_type"] != "Bearer":
             raise Exception("Not a bearer token")
 
         if "id_token" not in self._tokens:
             raise Exception("No id_token")
 
-        return "Bearer %s" % self._tokens["id_token"]
+        return "Bearer %s" % self._tokens["access_token"]
