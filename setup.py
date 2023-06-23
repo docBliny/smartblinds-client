@@ -8,14 +8,14 @@ def readme():
 
 setup(
     name='smartblinds_client',
-    version='0.7.0',
+    version='0.7.1',
     description='Unofficial client for the MySmartBlinds Smart Bridge',
     long_description=readme(),
     url='https://github.com/docBliny/smartblinds-client',
     author='Ian Levesque, Tomi Blinnikka',
     author_email='ian@ianlevesque.org, docBliny@users.noreply.github.com',
     packages=['smartblinds_client'],
-    install_requires=['auth0-python~=3.24.1', 'requests~=2.28.1'],
+    install_requires=['auth0-python~=3.24.1', 'requests'],
     long_description_content_type="text/markdown",
     classifiers=[
         'Development Status :: 4 - Beta',

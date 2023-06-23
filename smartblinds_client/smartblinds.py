@@ -301,8 +301,7 @@ class SmartBlindsClient:
         if response is None:
             raise Exception('No response received from MySmartBlinds service')
         elif 'data' in response:
-            print(response)
-            if 'bindsState' in response['data'] and response['data']['blindsState'] is not None:
+            if 'blindsState' in response['data'] and response['data']['blindsState'] is not None:
                 for blind_state in response['data'][key]:
                     blind_states[blind_state['encodedMacAddress']] = BlindState(
                         position=blind_state['position'],
@@ -310,10 +309,10 @@ class SmartBlindsClient:
                         battery_level=blind_state['batteryLevel'])
             elif 'errors' in response:
                 raise Exception('Server returned the following errors: {}'.format(
-                    json.dumps(response['errors'], 2)))
+                    json.dumps(response['errors'])))
         elif 'errors' in response:
             raise Exception('Server returned the following errors: {}'.format(
-                json.dumps(response['errors'], 2)))
+                json.dumps(response['errors'])))
         else:
             raise Exception('Unknown response received: {}'.format(response))
 
